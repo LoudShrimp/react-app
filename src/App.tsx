@@ -1,7 +1,7 @@
 import Alert from "./components/Alert";
 import Button from "./components/Button/Button";
 import ListGroup from "./components/ListGroup";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { FaCalendarAlt } from "react-icons/fa";
 import Like from "./components/Like";
@@ -13,6 +13,14 @@ import ExpenseList from "./expense-tracker/components/ExpenseList";
 import ExpenseFilter from "./expense-tracker/components/ExpenseFilter";
 import ExpenseForm from "./expense-tracker/components/ExpenseForm";
 import categories from "./expense-tracker/categories";
+import ProductList from "./components/ProductList";
+import axios, { AxiosError, CanceledError } from "axios";
+
+//interface for defining the shape of our users for our "API" call
+interface User {
+  id: number;
+  name: string;
+}
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -72,6 +80,58 @@ function App() {
 
   let items = ["New York", "San Francisco", "Tokyo"];
 
+  const ref = useRef<HTMLInputElement>(null);
+
+  const [category, setCategory] = useState("");
+
+  const connect = () => console.log("connecting");
+  const disconnect = () => console.log("disconnecting");
+
+  useEffect(() => {
+    connect();
+
+    return () => disconnect();
+  });
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState("");
+  const [isLoading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // const fetchUsers = async () => {
+    //   try {
+    //     const res = await axios.get<User[]>(
+    //       "https://jsonplaceholder.typicode.com/xusers"
+    //     );
+    //     setUsers(res.data);
+    //   } catch (err) {
+    //     setError((err as AxiosError).message);
+    //   }
+    // };
+
+    // fetchUsers();
+
+    // get -> await promise -> response / err
+    const controller = new AbortController();
+
+    setLoading(true);
+    axios
+      .get<User[]>("https://jsonplaceholder.typicode.com/users", {
+        signal: controller.signal,
+      })
+      .then((res) => {
+        setUsers(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err instanceof CanceledError) return;
+        setError(err.message);
+        setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <div>
       {alertVisible && (
@@ -123,6 +183,23 @@ function App() {
         expenses={visibleExpenses}
         onDelete={(id) => setExpenses(expenses.filter((e) => e.id !== id))}
       />
+
+      <select
+        className="form-select"
+        onChange={(event) => setCategory(event.target.value)}
+      >
+        <option value=""></option>
+        <option value="Clothing">Clothing</option>
+        <option value="Household">Household</option>
+      </select>
+      <ProductList category={category} />
+      {error && <p className="text-danger">{error}</p>}
+      {isLoading && <div className="spinner-border"></div>}
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
     </div>
   );
 }
